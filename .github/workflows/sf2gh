@@ -1,0 +1,58 @@
+#!/bin/env sh
+#
+# Imports the svn repo from a sourceforge project into a github repository
+#
+# Parameters:
+# 1: svn URL
+# 2: new branch name
+#
+# Ensure that:
+#  a) the github repo exists
+#  b) the sf.net project exists
+#  c) svn2git is installed and the path is correct
+#  d) the svn2git authors file exists and is correctly populated
+
+# Add full path to svn2git if not in $PATH
+SVN2GIT=svn2git
+
+TRUNKDIR="${l}"
+
+# sourceforge project unix name
+SFNETPROJECT="${2}"
+
+#Uncomment after initial clone
+#SVNAUTHORS="/home/${2}/svnauthors.txt"
+
+# your username on github - can be an organisation name. 
+# Full repo path will be constructed in the form $GITHUBUSER/$GITHUBREPO.git, hence default settings
+# will push to the repo at http://github.com/stwalkerster/roadworksmodel
+
+GITHUBUSER="${3}"
+
+# github repo - must exist, and you must be able to push to it etc.
+GITHUBREPO="${4}"
+
+
+mkdir /tmp/$GITHUBREPO
+cd /tmp/$GITHUBREPO
+
+echo "Downloading local copy of svn repo..."
+
+# thanks to
+# http://www.guyrutenberg.com/2008/12/12/backup-a-sourceforge-hosted-svn-repository-sf-svn-backup/
+# for this trick!
+rsync -aq $SFNETPROJECT.svn.sourceforge.net::svn/$SFNETPROJECT/* sfnet
+
+echo "Converting to git..."
+
+mkdir git
+cd git
+
+$SVN2GIT file:///tmp/$GITHUBREPO/sfnet/ --authors $SVNAUTHORS --trunk $TRUNKDIR
+
+echo "Pushing to github..."
+
+git remote add origin git@github.com:$GITHUBUSER/$GITHUBREPO.git
+git push -u origin master
+
+echo "Done!"
