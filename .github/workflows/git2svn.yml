@@ -1,0 +1,54 @@
+name: Sync SVN <=> GIT
+on: 
+  workflow_dispatch:
+permissions: write-all
+env:
+  API_TOKEN: ${{secrets.API_TOKEN}}
+  GITHUB_TOKEN: ${{github.token}}
+  TAG: ${{github.ref_name}}
+  TDATE: '2024OCT23'
+
+jobs:
+  sync:
+    runs-on: ubuntu-20.04
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{github.workspace}}
+    
+    steps:
+    
+    - name: 'Checkout Repo'
+      uses: actions/checkout@v4
+    
+    - name: 'Make script executable'
+      run: chmod +x ${{github.workspace}}/.github/workflows/<scriptname>        
+    
+    - name: 'Clone SVN'
+      shell: bash
+      run: |
+        ##
+        ##
+        ##
+      working-directory: ${{github.workspace}}
+
+    - name: 'Commit Changes'
+      uses: stefanzweifel/git-auto-commit-action@v5
+      with:
+        commit_message: "Gists imported ${{env.TDATE}} by GitHub Actions Bot"
+        branch: "import_${{env.TDATE}}"
+        tagging_message: "v${{env.TDATE}}"
+        add_options: '--no-all --no-warn-embedded-repo'
+        push_options: '--force'
+        skip_dirty_check: true    
+        skip_fetch: true    
+        disable_globbing: true
+        create_branch: true
+
+        
+    # name: 'Add & Commit'
+    # uses: EndBug/add-and-commit@v9.1.4
+    # with:
+    #   # The directory where your repository is located. You should use actions/checkout first to set it up
+    #   message: 'Imported via GitHub Action'
+    #   new_branch: "import_${{env.TDATE}}"
