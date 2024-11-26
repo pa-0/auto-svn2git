@@ -1,0 +1,76 @@
+#!/bin/bash
+
+if [[ $# != 1 && $# != 2 ]]
+then
+    echo "$0 <path to git repository> [tree-ish]"
+    exit 1
+fi
+
+msg() {
+    echo -e -n "\e[32;1m==>\e[0m "
+    echo "$1"
+}
+
+stage() {
+    echo
+    msg "$1"
+}
+
+MODULE_PATH="$1"
+if [[ -z "$2" ]]
+then
+    TREEISH="HEAD"
+else
+    TREEISH="$2"
+fi
+
+########################################
+stage "Clean workspace"
+svn revert -R .
+
+########################################
+stage "Sync target"
+(GIT_DIR=$MODULE_PATH/.git git log $TREEISH -1) || exit 1
+
+########################################
+stage "Sync modification"
+GIT_EXPORTED_DIR=`mktemp -d`
+trap "rm -rf $GIT_EXPORTED_DIR" EXIT
+(GIT_DIR=$MODULE_PATH/.git git archive $TREEISH | (cd $GIT_EXPORTED_DIR && tar xf -)) || exit 1
+rsync -avr --delete --exclude=.svn --exclude=sync.sh $GIT_EXPORTED_DIR/ . || exit 1
+rm -rf $GIT_EXPORTED_DIR
+trap - EXIT
+
+########################################
+stage "Sync add/rm files"
+svn status | grep "^!" | cut -c 9- | xargs --no-run-if-empty svn rm
+svn status | grep "^?" | cut -c 9- | xargs --no-run-if-empty svn add
+
+########################################
+stage "Check SVN status"
+svn status
+
+########################################
+stage "Commit message"
+SVN_COMMIT_MSG=`mktemp`
+trap "rm -f $SVN_COMMIT_MSG" EXIT
+echo "Import from internal Git repository" >> $SVN_COMMIT_MSG
+echo >> $SVN_COMMIT_MSG
+GIT_DIR=$MODULE_PATH/.git git log $TREEISH -1 >> $SVN_COMMIT_MSG
+cat $SVN_COMMIT_MSG
+
+########################################
+stage "Commit automatically? [Y/n]"
+echo -e -n "\e[33;1m==>\e[0m "
+read
+if [[ -z "$REPLY" || "$REPLY" == "Y" || "$REPLY" == "y" ]]
+then
+    LC_ALL="" LC_CTYPE="zh_CN.GB18030" svn commit -F $SVN_COMMIT_MSG || exit 1
+fi
+
+########################################
+stage "Done"
+rm -f $SVN_COMMIT_MSG
+trap - EXIT
+
+# vim: set expandtab ts=4 sw=4 sts=4 tw=100:
